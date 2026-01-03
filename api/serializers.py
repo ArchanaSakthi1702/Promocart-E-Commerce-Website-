@@ -70,14 +70,19 @@ class AddToCartSerializer(serializers.Serializer):
         return value
     
 
-   
 class UserProfileSerializer(serializers.ModelSerializer):
-    profile_picture = serializers.ImageField(use_url=True)
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = ['email', 'name', 'phone', 'address', 'profile_picture']
         read_only_fields = ['email']
+
+    def get_profile_picture(self, obj):
+        if obj.profile_picture:
+            return obj.profile_picture.url  # 👈 FULL Cloudinary URL
+        return None
+
 
 
 
@@ -103,12 +108,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    brand = serializers.CharField(source='brand.name')  # Show brand name
+    brand = serializers.CharField(source='brand.name')
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'image', 'brand']
 
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url  # 👈 FULL Cloudinary URL
+        return None
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -153,6 +163,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     brand = serializers.StringRelatedField()
     category = serializers.StringRelatedField()
     subcategory = serializers.StringRelatedField()
+    image = serializers.SerializerMethodField()  # 👈 FIX
 
     class Meta:
         model = Product
@@ -168,6 +179,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'stock',
         ]
 
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url  # 👈 Full Cloudinary URL
+        return None
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
@@ -184,16 +199,30 @@ class OrderTrackSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['id', 'created_at', 'total_price', 'status', 'items']
 
+
 class CartItemSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
-    product_image = serializers.ImageField(source='product.image', read_only=True)
+    product_image = serializers.SerializerMethodField()  # 👈 FIX
     subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'product_id', 'product_name', 'product_price', 'product_image', 'quantity', 'subtotal']
+        fields = [
+            'id',
+            'product_id',
+            'product_name',
+            'product_price',
+            'product_image',
+            'quantity',
+            'subtotal'
+        ]
+
+    def get_product_image(self, obj):
+        if obj.product.image:
+            return obj.product.image.url  # 👈 FULL Cloudinary URL
+        return None
 
     def get_subtotal(self, obj):
         return obj.quantity * obj.product.price
